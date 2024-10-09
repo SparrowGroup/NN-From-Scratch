@@ -1,3 +1,6 @@
+# **Evaluating on the Test Set**
+evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.2)
+default:~/NN-From-Scratch$ cat main.py
 import numpy as np
 import cupy as cp  # GPU-accelerated computing with CuPy
 import pandas as pd
@@ -10,7 +13,7 @@ import pickle
 import time
 
 # CIFAR-100 dataset URL and filename
-cifar100_url = "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
+cifar100_url = "https:gwww.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
 cifar100_filename = "cifar-100-python.tar.gz"
 
 # Directory to save downloaded and extracted data
@@ -244,19 +247,19 @@ def cross_entropy_loss(A3, Y, params, lambda_reg=0.001):
     # Identify all weight matrices (keys starting with 'W')
     weight_keys = [key for key in params if key.startswith('W')]
     num_weights = len(weight_keys)
-    print(f"Number of weight matrices detected: {num_weights}")
+    # print(f"Number of weight matrices detected: {num_weights}")
 
     for key in weight_keys:
         l2 = cp.sum(params[key] ** 2)
         l2_loss += l2
-        print(f"L2 loss for {key}: {l2.get():.4f}")
+        # print(f"L2 loss for {key}: {l2.get():.4f}")
 
     l2_loss = (lambda_reg / (2 * m)) * l2_loss
     total_loss = loss + l2_loss
 
-    print(f"Total cross-entropy loss: {loss.get():.4f}")
-    print(f"Total L2 regularization loss: {l2_loss.get():.4f}")
-    print(f"Combined total loss: {total_loss.get():.4f}")
+    # print(f"Total cross-entropy loss: {loss.get():.4f}")
+    # print(f"Total L2 regularization loss: {l2_loss.get():.4f}")
+    # print(f"Combined total loss: {total_loss.get():.4f}")
 
     return total_loss
 
@@ -351,7 +354,7 @@ def get_accuracy(predictions, Y):
 def gradient_descent(X, Y, iterations, alpha, batch_size=256, lambda_reg=0.001, dropout_rate=0.5):
     """Train the network using Adam optimizer with mini-batches, batch normalization, and dropout."""
 
-    layers = [3072, 1024, 512, 256, 100]  # Define network architecture
+    layers = [3072, 2048, 1024, 512, 256, 100]  # Define network architecture
     params = init_params(layers)
 
     # Initialize batch normalization parameters
@@ -431,72 +434,72 @@ W1, b1, W2, b2, W3, b3 = None, None, None, None, None, None  # Placeholder if ne
 best_params = gradient_descent(
     X_train_gpu,
     y_train_gpu,
-    iterations=100,
+    iterations=600,
     alpha=0.001,  # Lower learning rate for Adam
     batch_size=256,
-    lambda_reg=0.01,  # Reduced regularization strength
-    dropout_rate=0.5  # 50% dropout rate
+    lambda_reg=0.001,  # Reduced regularization strength
+    dropout_rate=0.3  # 50% dropout rate
 )
-print("100 iter training completed.")
+print("600 iter mid-low learning rate, low dropout training completed.")
 
 # **Evaluating on the Test Set**
-evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.5)
+evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.005, dropout_rate=0.3)
 
 best_params = gradient_descent(
     X_train_gpu,
     y_train_gpu,
-    iterations=200,
+    iterations=600,
     alpha=0.001,  # Lower learning rate for Adam
     batch_size=256,
-    lambda_reg=0.01,  # Reduced regularization strength
-    dropout_rate=0.5  # 50% dropout rate
+    lambda_reg=0.005,  # Reduced regularization strength
+    dropout_rate=0.25  # 50% dropout rate
 )
-print("200 iter training completed.")
+print("600 iter model 2 training completed.")
 
 # **Evaluating on the Test Set**
-evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.5)
+evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.005, dropout_rate=0.25)
 
 best_params = gradient_descent(
     X_train_gpu,
     y_train_gpu,
-    iterations=300,
+    iterations=800,
     alpha=0.001,  # Lower learning rate for Adam
-    batch_size=256,
+    batch_size=128,
     lambda_reg=0.01,  # Reduced regularization strength
-    dropout_rate=0.5  # 50% dropout rate
+    dropout_rate=0.3  # 50% dropout rate
 )
-print("300 iter training completed.")
+print("800 iter model training completed.")
 
 # **Evaluating on the Test Set**
 evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.5)
 
-best_params = gradient_descent(
-    X_train_gpu,
-    y_train_gpu,
-    iterations=400,
-    alpha=0.001,  # Lower learning rate for Adam
-    batch_size=256,
-    lambda_reg=0.01,  # Reduced regularization strength
-    dropout_rate=0.5  # 50% dropout rate
-)
-print("400 iter training completed.")
+# best_params = gradient_descent(
+#    X_train_gpu,
+#    y_train_gpu,
+#    iterations=600,
+#    alpha=0.001,  # Lower learning rate for Adam
+#    batch_size=256,
+#    lambda_reg=0.01,  # Reduced regularization strength
+#    dropout_rate=0.3  # 50% dropout rate
+# )
+# print("600 iter low dropout rate training completed.")
 
 # **Evaluating on the Test Set**
-evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.5)
+# evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.01, dropout_rate=0.3)
 
-best_params = gradient_descent(
-    X_train_gpu,
-    y_train_gpu,
-    iterations=500,
-    alpha=0.001,  # Lower learning rate for Adam
-    batch_size=256,
-    lambda_reg=0.01,  # Reduced regularization strength
-    dropout_rate=0.5  # 50% dropout rate
-)
-print("500 iter training completed.")
+# best_params = gradient_descent(
+#    X_train_gpu,
+#    y_train_gpu,
+#    iterations=600,
+#    alpha=0.001,  # Lower learning rate for Adam
+#    batch_size=512,
+#    lambda_reg=0.01,  # Reduced regularization strength
+#    dropout_rate=0.5  # 50% dropout rate
+# )
+# print("600 iter large batch training completed.")
 
 # **Evaluating on the Test Set**
-evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.5)
+# evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.5)
 
 best_params = gradient_descent(
     X_train_gpu,
@@ -505,9 +508,9 @@ best_params = gradient_descent(
     alpha=0.001,  # Lower learning rate for Adam
     batch_size=256,
     lambda_reg=0.01,  # Reduced regularization strength
-    dropout_rate=0.5  # 50% dropout rate
+    dropout_rate=0.2  # 50% dropout rate
 )
-print("600 iter training completed.")
+print("600 iter low dropout training completed.")
 
 # **Evaluating on the Test Set**
-evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.5)
+evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.2)
