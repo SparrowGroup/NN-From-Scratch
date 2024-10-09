@@ -1,6 +1,3 @@
-# **Evaluating on the Test Set**
-evaluate(best_params, X_test_gpu, y_test_gpu, lambda_reg=0.0001, dropout_rate=0.2)
-default:~/NN-From-Scratch$ cat main.py
 import numpy as np
 import cupy as cp  # GPU-accelerated computing with CuPy
 import pandas as pd
@@ -13,7 +10,7 @@ import pickle
 import time
 
 # CIFAR-100 dataset URL and filename
-cifar100_url = "https:gwww.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
+cifar100_url = "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"  # Corrected URL
 cifar100_filename = "cifar-100-python.tar.gz"
 
 # Directory to save downloaded and extracted data
@@ -66,35 +63,117 @@ def unpickle(file):
 def load_batch(file):
     """Load data and labels from a CIFAR-100 batch file."""
     batch = unpickle(file)
-    X = batch[b'data']
-    y = np.array(batch[b'fine_labels'])
+    X = batch[b'data']  # Shape: (num_samples, 3072)
+    y = np.array(batch[b'fine_labels'])  # Shape: (num_samples,)
     return X, y
 
 
-def load_data(dir):
-    """Load training and test data from CIFAR-100."""
-    train_file = os.path.join(data_dir, 'cifar-100-python', 'train')
-    test_file = os.path.join(data_dir, 'cifar-100-python', 'test')
+def augment_data_horizontally(X, y):
+    """
+    Augment the dataset by adding horizontally flipped versions of each image.
+
+    Parameters:
+    - X: CuPy array of shape (num_samples, 3072)
+    - y: NumPy array of shape (num_samples,)
+
+    Returns:
+    - X_augmented: CuPy array of shape (num_samples * 2, 3072)
+    - y_augmented: NumPy array of shape (num_samples * 2,)
+    """
+    # Ensure X is a CuPy array
+    if not isinstance(X, cp.ndarray):
+        X = cp.array(X)
+
+    # Reshape to (num_samples, 3, 32, 32)
+    try:
+        X_images = X.reshape(-1, 3, 32, 32)
+    except ValueError as e:
+        print("Error reshaping X to (num_samples, 3, 32, 32):", e)
+        raise
+
+    # Perform horizontal flip (reflection) along the width axis (axis=3)
+    X_flipped = cp.flip(X_images, axis=3)
+
+    # Reshape back to (num_samples, 3072)
+    X_flipped_flat = X_flipped.reshape(-1, 3072)
+
+    # Concatenate the original and augmented data along the samples axis (axis=0)
+    X_augmented = cp.concatenate((X, X_flipped_flat), axis=0)
+
+    # Duplicate the labels
+    y_augmented = np.concatenate((y, y), axis=0)
+
+    return X_augmented, y_augmented
+
+
+def load_data_with_augmentation(dir, augment=True):
+    """
+    Load training and test data from CIFAR-100, with optional augmentation.
+
+    Parameters:
+    - dir: Directory where CIFAR-100 data is stored
+    - augment: Boolean indicating whether to perform data augmentation
+
+    Returns:
+    - X_train_aug: Augmented training data as CuPy array of shape (2*num_samples, 3072) if augmented
+    - y_train_aug: Augmented training labels as NumPy array of shape (2*num_samples,)
+    - X_test: Test data as CuPy array of shape (num_test_samples, 3072)
+    - y_test: Test labels as NumPy array of shape (num_test_samples,)
+    """
+    train_file = os.path.join(dir, 'cifar-100-python', 'train')
+    test_file = os.path.join(dir, 'cifar-100-python', 'test')
 
     X_train, y_train = load_batch(train_file)
     X_test, y_test = load_batch(test_file)
 
-    return X_train, y_train, X_test, y_test
+    # Convert training and test data to CuPy for GPU operations
+    X_train_cp = cp.array(X_train).astype(cp.float32)  # Shape: (num_samples, 3072)
+    X_test_cp = cp.array(X_test).astype(cp.float32)     # Shape: (num_test_samples, 3072)
+
+    if augment:
+        print("Augmenting training data with horizontal reflections...")
+        X_train_aug, y_train_aug = augment_data_horizontally(X_train_cp, y_train)
+        print(f"Original training samples: {X_train_cp.shape[0]}")
+        print(f"Augmented training samples: {X_train_aug.shape[0]}")
+    else:
+        X_train_aug = X_train_cp
+        y_train_aug = y_train
+
+    return X_train_aug, y_train_aug, X_test_cp, y_test
+
 
 
 def show_random_samples(X_train, y_train, num_samples=3):
     """Display random samples from the training set."""
     X_train_cpu = cp.asnumpy(X_train)
-    y_train_cpu = cp.asnumpy(y_train)
+    y_train_cpu = y_train  # y_train is already a NumPy array
 
-    random_indices = np.random.choice(X_train_cpu.shape[1], num_samples, replace=False)
+    total_samples = X_train_cpu.shape[1]
+    random_indices = np.random.choice(total_samples, num_samples, replace=False)
 
     for idx in random_indices:
         image = X_train_cpu[:, idx].reshape(3, 32, 32).transpose(1, 2, 0)
         label = y_train_cpu[idx]
 
         print(f'Label: {label}')
-        plt.imshow(image)
+        plt.imshow(image.astype(np.uint8))
+        plt.show()
+
+
+def show_augmented_samples(X_train, y_train, num_samples=3):
+    """Display random samples from the augmented training set."""
+    X_train_cpu = cp.asnumpy(X_train)
+    y_train_cpu = y_train  # y_train is already a NumPy array
+
+    total_samples = X_train_cpu.shape[1]
+    random_indices = np.random.choice(total_samples, num_samples, replace=False)
+
+    for idx in random_indices:
+        image = X_train_cpu[:, idx].reshape(3, 32, 32).transpose(1, 2, 0)
+        label = y_train_cpu[idx]
+
+        print(f'Label: {label}')
+        plt.imshow(image.astype(np.uint8))
         plt.show()
 
 
@@ -109,7 +188,7 @@ def standardize_data(X_train, X_test):
 
 # Download and load the data
 download_cifar100()
-X_train, y_train, X_test, y_test = load_data(data_dir)
+X_train, y_train, X_test, y_test = load_data_with_augmentation(data_dir, augment=True)
 
 # Normalize pixel values to [0, 1]
 X_train = X_train.astype('float32') / 255.0
